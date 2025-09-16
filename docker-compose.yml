@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # PostgreSQL база данных
+  db:
+    image: postgres:15-alpine
+    container_name: fruits_postgres
+    environment:
+      POSTGRES_DB: fruits
+      POSTGRES_USER: nuakitka
+      POSTGRES_PASSWORD: 1111
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nuakitka -d fruits"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: fruits_backend
+    environment:
+      DATABASE_URL: postgresql://nuakitka:1111@db:5432/fruits
+      DEBUG: "True"
+      SECRET_KEY: docker-secret-key-change-in-production
+      ALLOWED_ORIGINS: http://localhost:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+
+  # Frontend - простая версия с serve
+  frontend:
+    build: ./frontend
+    container_name: fruits_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+
+volumes:
+  postgres_data:
